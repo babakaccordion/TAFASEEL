@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#7B1F3A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="تفاصيل">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>تفاصيل</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>🎵 تفاصيل</h1>
+    <button class="icon-btn" onclick="toggleTheme()">🌙</button>
+  </header>
+  <main>
+    <!-- Dashboard -->
+    <section id="screen-dashboard">
+      <div class="stat-grid">
+        <div class="stat"><div class="label">عدد الحفلات</div><div class="value" id="stat-gigs">0</div></div>
+        <div class="stat"><div class="label">الحفلات القادمة</div><div class="value" id="stat-upcoming">0</div></div>
+        <div class="stat"><div class="label">الحفلات المكتملة</div><div class="value" id="stat-completed">0</div></div>
+        <div class="stat"><div class="label">عدد العازفين</div><div class="value" id="stat-musicians">0</div></div>
+      </div>
+      <div class="stat" style="margin-top:10px"><div class="label">إجمالي الدخل</div><div class="value" id="stat-income">0.00 د.أ</div></div>
+      <div class="chart-wrap"><canvas id="chart-income"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-dress"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-month"></canvas></div>
+      <div class="section-title">آخر الحفلات</div>
+      <div class="card" style="padding:0;overflow:auto">
+        <table><thead><tr><th>اسم الحفلة</th><th>التاريخ</th><th>المكان</th><th>نوع اللباس</th><th>السعر</th></tr></thead>
+        <tbody id="recent-tbody"></tbody></table>
+      </div>
+      <button class="btn btn-ghost btn-block" onclick="exportGeneralPDF()">تصدير تقرير عام PDF</button>
+    </section>
+
+    <!-- Gigs -->
+    <section id="screen-gigs" style="display:none">
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn btn-primary" onclick="openGigModal()">+ إضافة حفلة</button>
+      </div>
+      <div class="row" style="margin-bottom:8px">
+        <select id="gig-filter" onchange="renderGigs()"><option>الكل</option><option>قادمة</option><option>مكتملة</option></select>
+        <input id="gig-search" placeholder="بحث..." oninput="renderGigs()">
+      </div>
+      <div class="card" style="padding:0;overflow:auto">
+        <table><thead><tr><th>اسم الحفلة</th><th>التاريخ</th><th>الوقت</th><th>المكان</th><th>نوع اللباس</th><th>السعر</th><th>أجر العازفين</th><th>إجراءات</th></tr></thead>
+        <tbody id="gigs-tbody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- Musicians -->
+    <section id="screen-musicians" style="display:none">
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn btn-primary" onclick="openMusicianModal()">+ إضافة عازف</button>
+      </div>
+      <input id="mus-search" placeholder="بحث..." oninput="renderMusicians()" style="margin-bottom:8px">
+      <div id="musicians-list"></div>
+    </section>
+
+    <!-- Musician detail -->
+    <section id="screen-musicianDetail" style="display:none">
+      <div id="musician-detail-content"></div>
+    </section>
+
+    <!-- Settings -->
+    <section id="screen-settings" style="display:none">
+      <div class="section-title">الآلات الموسيقية</div>
+      <button class="btn btn-secondary btn-block" onclick="addInstrumentPrompt()" style="margin-bottom:8px">+ إضافة آلة</button>
+      <div id="inst-list"></div>
+      <div class="section-title" style="margin-top:16px">أنواع اللباس</div>
+      <button class="btn btn-secondary btn-block" onclick="addDressPrompt()" style="margin-bottom:8px">+ إضافة نوع لباس</button>
+      <div id="dress-list"></div>
+    </section>
+
+    <!-- Notes -->
+    <section id="screen-notes" style="display:none">
+      <div class="card">
+        <select id="note-scope"><option>عامة</option><option>حفلة</option><option>عازف</option></select>
+        <input id="note-ref" placeholder="معرّف الحفلة/العازف (للمرتبطة)" style="margin-top:6px">
+        <input id="note-title" placeholder="عنوان (اختياري)" style="margin-top:6px">
+        <textarea id="note-content" placeholder="اكتب الملاحظة..." style="margin-top:6px"></textarea>
+        <button class="btn btn-primary btn-block" onclick="addNoteForm()" style="margin-top:8px">إضافة ملاحظة</button>
+      </div>
+      <div class="row" style="margin-bottom:8px">
+        <select id="notes-filter" onchange="renderNotes()"><option>الكل</option><option>عامة</option><option>حفلة</option><option>عازف</option></select>
+      </div>
+      <div id="notes-list"></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button data-screen="dashboard" onclick="navigate('dashboard')" class="active"><span class="ic">🏠</span>الرئيسية</button>
+    <button data-screen="gigs" onclick="navigate('gigs')"><span class="ic">🎼</span>الحفلات</button>
+    <button data-screen="musicians" onclick="navigate('musicians')"><span class="ic">👤</span>العازفون</button>
+    <button data-screen="settings" onclick="navigate('settings')"><span class="ic">⚙️</span>الإعدادات</button>
+    <button data-screen="notes" onclick="navigate('notes')"><span class="ic">📝</span>الملاحظات</button>
+  </nav>
+</div>
+
+<!-- Gig Modal -->
+<div class="modal-backdrop" id="gig-modal">
+  <div class="modal">
+    <h2>حفلة</h2>
+    <label>اسم الحفلة</label><input id="gig-name">
+    <label>التاريخ</label><input type="date" id="gig-date">
+    <div class="row"><div><label>وقت البداية</label><input type="time" id="gig-start"></div><div><label>وقت النهاية</label><input type="time" id="gig-end"></div></div>
+    <label>المكان</label><input id="gig-location">
+    <label>نوع اللباس</label><select id="gig-dress"></select>
+    <label>سعر الحفلة</label><input type="number" id="gig-price" step="0.01">
+    <label>ملاحظات</label><textarea id="gig-notes"></textarea>
+    <div class="section-title" style="font-size:15px">العازفون المشاركون</div>
+    <div id="gig-musicians-list"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-secondary" onclick="closeGigModal()">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveGig()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Musician Modal -->
+<div class="modal-backdrop" id="musician-modal">
+  <div class="modal">
+    <h2>عازف</h2>
+    <label>الاسم</label><input id="mus-name">
+    <label>الآلة</label><select id="mus-instrument"></select>
+    <label>الهاتف</label><input id="mus-phone">
+    <label>ملاحظات</label><textarea id="mus-notes"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-secondary" onclick="closeMusicianModal()">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveMusician()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+<script>
+function toggleTheme(){ document.body.classList.toggle('dark'); }
+function exportGeneralPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.text('تفاصيل', 105, 15, {align:'center'});
+  doc.text('تقرير عام', 105, 25, {align:'center'});
+  let y=40;
+  doc.text('عدد الحفلات: '+state.gigs.length, 10, y); y+=8;
+  doc.text('عدد العازفين: '+state.musicians.length, 10, y); y+=8;
+  const total = state.gigs.reduce((a,g)=>a+(Number(g.price)||0),0);
+  doc.text('إجمالي الدخل: '+fmtMoney(total), 10, y); y+=8;
+  doc.save('general.pdf');
+}
+</script>
+</body>
+</html>
