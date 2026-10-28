@@ -88,7 +88,7 @@ function today() { return new Date().toISOString().slice(0,10); }
 
 // Navigation
 let currentScreen = 'dashboard';
-const screens = ['dashboard','gigs','musicians','settings','notes'];
+const screens = ['dashboard','gigs','musicians','settings','notes','invoices','gigDetail'];
 function navigate(name) {
   currentScreen = name;
   document.querySelectorAll('section[id^="screen-"]').forEach(s => { s.style.display = 'none'; });
@@ -105,6 +105,7 @@ function renderCurrent() {
   else if (currentScreen==='musicians') renderMusicians();
   else if (currentScreen==='settings') renderSettings();
   else if (currentScreen==='notes') renderNotes();
+  else if (currentScreen==='invoices') renderInvoices();
 }
 
 // Dashboard
@@ -523,7 +524,7 @@ async function htmlToPDF(html, filename) {
   container.innerHTML = '';
 }
 
-function watermarkImg() { return '<img src="watermark.png" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.12;pointer-events:none;" onerror="this.style.display=\'none\'" alt="">'; }
+function watermarkImg() { return '<img src="watermark.png" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;opacity:0.08;pointer-events:none;" onerror="this.style.display=\'none\'" alt="">'; }
 
 function exportGigReport(id) {
   const g = state.gigs.find(x=>x.id===id);
@@ -596,6 +597,23 @@ function exportGigInvoice(id) {
   htmlToPDF(html, `invoice_${id}.pdf`);
 }
 
+// Invoices screen
+function renderInvoices() {
+  const container = document.getElementById('invoices-list');
+  if (!container) return;
+  const gigs = [...state.gigs].sort((a,b)=>b.date.localeCompare(a.date));
+  container.innerHTML = gigs.map(g=>`
+    <div class="list-item" style="flex-direction:column;align-items:stretch;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div class="title">${g.name}</div>
+          <div class="sub">${g.date} · ${g.location||''} · ${fmtMoney(g.price)}</div>
+        </div>
+        <button class="btn btn-primary" style="padding:6px 12px;font-size:13px;" onclick="openReceiptPreview(${g.id})">إصدار إيصال</button>
+      </div>
+    </div>`).join('') || '<div class="empty">لا توجد حفلات</div>';
+}
+
 // Receipt (إيصال)
 let currentReceiptGigId = null;
 function buildReceiptHTML(g) {
@@ -635,6 +653,20 @@ function openReceiptPreview(id) {
   document.getElementById('receipt-modal').classList.add('show');
 }
 function closeReceiptModal() { document.getElementById('receipt-modal').classList.remove('show'); }
+function printReceipt() {
+  if (!currentReceiptGigId) return;
+  const g = state.gigs.find(x=>x.id===currentReceiptGigId);
+  const html = buildReceiptHTML(g);
+  const w = window.open('', '_blank');
+  if (!w) { alert('يرجى السماح بالنوافذ المنبثقة (Pop-ups) للطباعة'); return; }
+  w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>إيصال - تفاصيل</title><style>
+    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; margin: 20px; }
+    @media print { body { margin: 0; } .no-print { display: none; } }
+  </style></head><body>${html}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 500);
+}
 function exportReceiptPDFFromModal() {
   if (!currentReceiptGigId) return;
   const g = state.gigs.find(x=>x.id===currentReceiptGigId);

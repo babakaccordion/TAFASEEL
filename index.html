@@ -90,6 +90,12 @@
       <div id="dress-list"></div>
     </section>
 
+    <!-- Invoices -->
+    <section id="screen-invoices" style="display:none">
+      <div class="section-title">جميع الحفلات (لإصدار الإيصال)</div>
+      <div id="invoices-list"></div>
+    </section>
+
     <!-- Notes -->
     <section id="screen-notes" style="display:none">
       <div class="card">
@@ -112,6 +118,7 @@
     <button data-screen="musicians" onclick="navigate('musicians')"><span class="ic">👤</span>العازفون</button>
     <button data-screen="settings" onclick="navigate('settings')"><span class="ic">⚙️</span>الإعدادات</button>
     <button data-screen="notes" onclick="navigate('notes')"><span class="ic">📝</span>الملاحظات</button>
+    <button data-screen="invoices" onclick="navigate('invoices')"><span class="ic">🧾</span>فاتورة</button>
   </nav>
 </div>
 
@@ -165,6 +172,7 @@
     <div id="receipt-preview" style="background:#fff;border:1px solid #E8D4DC;border-radius:8px;padding:16px;margin:10px 0;max-height:60vh;overflow-y:auto;"></div>
     <div class="row" style="margin-top:10px;">
       <button class="btn btn-secondary" onclick="closeReceiptModal()">إغلاق</button>
+      <button class="btn btn-ghost" onclick="printReceipt()">طباعة</button>
       <button class="btn btn-primary" onclick="exportReceiptPDFFromModal()">تصدير PDF</button>
     </div>
   </div>
