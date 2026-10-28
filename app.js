@@ -173,6 +173,7 @@ function renderGigs() {
     return `<tr>
       <td>${g.name}</td><td>${g.date}</td><td>${g.start||''} - ${g.end||''}</td><td>${g.location||''}</td><td>${dressName(g.dressTypeId)}</td><td>${fmtMoney(g.price)}</td><td>${fmtMoney(fees)}</td>
       <td>
+        <button class="btn btn-secondary" style="padding:6px 10px;font-size:13px" onclick="openGigDetail(${g.id})">عرض</button>
         <button class="btn btn-secondary" style="padding:6px 10px;font-size:13px" onclick="editGig(${g.id})">تعديل</button>
         <button class="btn btn-danger" style="padding:6px 10px;font-size:13px" onclick="confirmDeleteGig(${g.id})">حذف</button>
       </td>
@@ -448,6 +449,150 @@ function addNoteForm() {
   document.getElementById('note-content').value='';
   document.getElementById('note-title').value='';
   renderNotes();
+}
+
+// Gig detail
+function openGigDetail(id) {
+  const g = state.gigs.find(x=>x.id===id);
+  if (!g) return;
+  navigate('gigDetail');
+  const fees = (g.musicians||[]).reduce((a,x)=>a+(Number(x.fee)||0),0);
+  const container = document.getElementById('gig-detail-content');
+  container.innerHTML = `
+    <button class="btn btn-secondary" onclick="navigate('gigs')" style="margin-bottom:10px;">← رجوع</button>
+    <div class="card">
+      <div class="section-title">${g.name}</div>
+      <table>
+        <tr><th>التاريخ</th><td>${g.date}</td></tr>
+        <tr><th>وقت البداية</th><td>${g.start||'—'}</td></tr>
+        <tr><th>وقت النهاية</th><td>${g.end||'—'}</td></tr>
+        <tr><th>المكان</th><td>${g.location||'—'}</td></tr>
+        <tr><th>نوع اللباس</th><td>${dressName(g.dressTypeId)}</td></tr>
+        <tr><th>سعر الحفلة</th><td>${fmtMoney(g.price)}</td></tr>
+        <tr><th>إجمالي أجر العازفين</th><td>${fmtMoney(fees)}</td></tr>
+        <tr><th>الصافي</th><td>${fmtMoney((Number(g.price)||0)-fees)}</td></tr>
+        ${g.notes?`<tr><th>ملاحظات</th><td>${g.notes}</td></tr>`:''}
+      </table>
+    </div>
+    <div class="card">
+      <div class="section-title">العازفون المشاركون</div>
+      <table><thead><tr><th>العازف</th><th>الآلة</th><th>الأجر</th></tr></thead>
+      <tbody>${(g.musicians||[]).map(gm=>`<tr><td>${musicianName(gm.musicianId)}</td><td>${instrName(state.musicians.find(m=>m.id===gm.musicianId)?.instrumentId)}</td><td>${fmtMoney(gm.fee)}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">لا يوجد عازفون</td></tr>'}</tbody></table>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button class="btn btn-primary" onclick="exportGigReport(${g.id})">تصدير تقرير (PDF)</button>
+      <button class="btn btn-secondary" onclick="exportGigInvoice(${g.id})">فاتورة (PDF)</button>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button class="btn btn-ghost" onclick="exportGigXLSX(${g.id})">تصدير Excel</button>
+    </div>
+  `;
+}
+
+// HTML -> PDF helper
+async function htmlToPDF(html, filename) {
+  const container = document.getElementById('print-area');
+  container.innerHTML = html;
+  container.style.display = 'block';
+  await new Promise(r=>setTimeout(r,400));
+  try {
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    pdf.save(filename);
+  } catch (e) {
+    alert('خطأ في التصدير: ' + e.message);
+  }
+  container.style.display = 'none';
+  container.innerHTML = '';
+}
+
+function watermarkImg() { return '<img src="watermark.png" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.12;pointer-events:none;" onerror="this.style.display=\'none\'" alt="">'; }
+
+function exportGigReport(id) {
+  const g = state.gigs.find(x=>x.id===id);
+  const fees = (g.musicians||[]).reduce((a,x)=>a+(Number(x.fee)||0),0);
+  const html = `
+    <div style="position:relative;min-height:1000px;">
+      ${watermarkImg()}
+      <div style="text-align:center;margin-bottom:12px;">
+        <h1 style="color:#5A1428;margin:0;">تفاصيل</h1>
+        <p style="color:#7A5A62;margin:4px 0 0;">تقرير الحفلة</p>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr><th style="background:#F3E6EC;color:#5A1428;padding:8px;border:1px solid #E8D4DC;text-align:right;">الحقل</th><th style="background:#F3E6EC;color:#5A1428;padding:8px;border:1px solid #E8D4DC;text-align:right;">القيمة</th></tr></thead>
+        <tbody>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;">اسم الحفلة</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.name}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;">التاريخ</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.date}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;">وقت البداية</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.start||'—'}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;">وقت النهاية</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.end||'—'}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;">المكان</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.location||'—'}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;">نوع اللباس</td><td style="padding:8px;border:1px solid #E8D4DC;">${dressName(g.dressTypeId)}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;">سعر الحفلة</td><td style="padding:8px;border:1px solid #E8D4DC;">${fmtMoney(g.price)}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;">إجمالي أجر العازفين</td><td style="padding:8px;border:1px solid #E8D4DC;">${fmtMoney(fees)}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;">الصافي</td><td style="padding:8px;border:1px solid #E8D4DC;">${fmtMoney((Number(g.price)||0)-fees)}</td></tr>
+          ${g.notes?`<tr><td style="padding:8px;border:1px solid #E8D4DC;">ملاحظات</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.notes}</td></tr>`:''}
+        </tbody>
+      </table>
+      <h3 style="color:#5A1428;margin:14px 0 6px;">العازفون المشاركون</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr><th style="background:#F3E6EC;color:#5A1428;padding:8px;border:1px solid #E8D4DC;text-align:right;">العازف</th><th style="background:#F3E6EC;color:#5A1428;padding:8px;border:1px solid #E8D4DC;text-align:right;">الآلة</th><th style="background:#F3E6EC;color:#5A1428;padding:8px;border:1px solid #E8D4DC;text-align:right;">الأجر</th></tr></thead>
+        <tbody>${(g.musicians||[]).map(gm=>`<tr><td style="padding:8px;border:1px solid #E8D4DC;">${musicianName(gm.musicianId)}</td><td style="padding:8px;border:1px solid #E8D4DC;">${instrName(state.musicians.find(m=>m.id===gm.musicianId)?.instrumentId)}</td><td style="padding:8px;border:1px solid #E8D4DC;">${fmtMoney(gm.fee)}</td></tr>`).join('')||'<tr><td colspan="3" style="padding:8px;border:1px solid #E8D4DC;text-align:center;">لا يوجد عازفون</td></tr>'}</tbody>
+      </table>
+      <div style="margin-top:24px;text-align:center;border-top:1px solid #E8D4DC;padding-top:12px;">
+        <p style="font-weight:700;color:#5A1428;margin:0;">فرقة تفاصيل</p>
+        <p style="color:#7A5A62;margin:4px 0 0;font-size:13px;">نشكركم لأختيارنا ولتعاملكم معنا</p>
+      </div>
+    </div>
+  `;
+  htmlToPDF(html, `gig_report_${id}.pdf`);
+}
+
+function exportGigInvoice(id) {
+  const g = state.gigs.find(x=>x.id===id);
+  const html = `
+    <div style="position:relative;min-height:1000px;">
+      ${watermarkImg()}
+      <div style="text-align:center;margin-bottom:16px;">
+        <h1 style="color:#5A1428;margin:0;font-size:26px;">تفاصيل</h1>
+        <p style="color:#7A5A62;margin:4px 0 0;font-size:15px;font-weight:600;">نحن فرقة تفاصيل نشكركم لأختيارنا ولتعاملكم معنا</p>
+      </div>
+      <h2 style="color:#5A1428;text-align:center;margin:8px 0;">فاتورة حفلة</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <tbody>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">اسم الحفلة</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.name}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">التاريخ</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.date}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">الوقت</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.start||'—'} - ${g.end||'—'}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">المكان</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.location||'—'}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">نوع اللباس</td><td style="padding:8px;border:1px solid #E8D4DC;">${dressName(g.dressTypeId)}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">سعر الحفلة</td><td style="padding:8px;border:1px solid #E8D4DC;">${fmtMoney(g.price)}</td></tr>
+          ${g.notes?`<tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">ملاحظات</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.notes}</td></tr>`:''}
+        </tbody>
+      </table>
+      <div style="margin-top:60px;display:flex;justify-content:flex-start;">
+        <div style="border-top:1px solid #000;padding-top:6px;min-width:180px;text-align:center;">التوقيع</div>
+      </div>
+      <div style="margin-top:24px;text-align:center;border-top:1px solid #E8D4DC;padding-top:12px;">
+        <p style="font-weight:700;color:#5A1428;margin:0;">فرقة تفاصيل</p>
+      </div>
+    </div>
+  `;
+  htmlToPDF(html, `invoice_${id}.pdf`);
 }
 
 // Export
