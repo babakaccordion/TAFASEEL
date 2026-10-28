@@ -485,6 +485,7 @@ function openGigDetail(id) {
     </div>
     <div class="row" style="margin-top:8px;">
       <button class="btn btn-ghost" onclick="exportGigXLSX(${g.id})">تصدير Excel</button>
+      <button class="btn btn-primary" onclick="openReceiptPreview(${g.id})">إيصال (معاينة/طباعة)</button>
     </div>
   `;
 }
@@ -593,6 +594,81 @@ function exportGigInvoice(id) {
     </div>
   `;
   htmlToPDF(html, `invoice_${id}.pdf`);
+}
+
+// Receipt (إيصال)
+let currentReceiptGigId = null;
+function buildReceiptHTML(g) {
+  return `
+    <div style="position:relative;min-height:900px;padding:20px;">
+      <img src="watermark.png" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:55%;opacity:0.12;pointer-events:none;" onerror="this.style.display='none'" alt="">
+      <div style="text-align:center;margin-bottom:14px;">
+        <h1 style="color:#5A1428;margin:0;font-size:26px;">فرقة تفاصيل</h1>
+        <p style="color:#7A5A62;margin:6px 0 0;font-size:14px;font-weight:600;">لأننا نهتم في كل التفاصيل امتناننا لثقتكم بفرقة تفاصيل الموسيقية… معكم نُبدع</p>
+      </div>
+      <h2 style="color:#5A1428;text-align:center;margin:8px 0 12px;">إيصال</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <tbody>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;width:40%;">اسم الحفلة</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.name}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">التاريخ</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.date}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">الوقت</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.start||'—'} - ${g.end||'—'}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">المكان</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.location||'—'}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">نوع اللباس</td><td style="padding:8px;border:1px solid #E8D4DC;">${dressName(g.dressTypeId)}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">المبلغ (د.أ)</td><td style="padding:8px;border:1px solid #E8D4DC;">${fmtMoney(g.price)}</td></tr>
+          ${g.notes?`<tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">ملاحظات</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.notes}</td></tr>`:''}
+        </tbody>
+      </table>
+      <div style="margin-top:60px;display:flex;justify-content:flex-start;">
+        <div style="border-top:1px solid #000;padding-top:6px;min-width:200px;text-align:center;">التوقيع</div>
+      </div>
+      <div style="margin-top:24px;text-align:center;border-top:1px solid #E8D4DC;padding-top:12px;">
+        <p style="font-weight:700;color:#5A1428;margin:0;">فرقة تفاصيل</p>
+      </div>
+    </div>
+  `;
+}
+function openReceiptPreview(id) {
+  const g = state.gigs.find(x=>x.id===id);
+  if (!g) return;
+  currentReceiptGigId = id;
+  document.getElementById('receipt-preview').innerHTML = buildReceiptHTML(g);
+  document.getElementById('receipt-modal').classList.add('show');
+}
+function closeReceiptModal() { document.getElementById('receipt-modal').classList.remove('show'); }
+function exportReceiptPDFFromModal() {
+  if (!currentReceiptGigId) return;
+  const g = state.gigs.find(x=>x.id===currentReceiptGigId);
+  const html = buildReceiptHTML(g);
+  const container = document.getElementById('print-area');
+  container.innerHTML = html;
+  container.style.display = 'block';
+  setTimeout(async () => {
+    try {
+      const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p','mm','a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = canvas.height * imgWidth / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      pdf.save(`receipt_${currentReceiptGigId}.pdf`);
+    } catch (e) {
+      alert('خطأ في التصدير: ' + e.message);
+    }
+    container.style.display = 'none';
+    container.innerHTML = '';
+  }, 400);
 }
 
 // Export

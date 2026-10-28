@@ -158,6 +158,17 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<!-- Receipt Modal -->
+<div class="modal-backdrop" id="receipt-modal">
+  <div class="modal" style="max-width:600px;">
+    <h2>معاينة الإيصال</h2>
+    <div id="receipt-preview" style="background:#fff;border:1px solid #E8D4DC;border-radius:8px;padding:16px;margin:10px 0;max-height:60vh;overflow-y:auto;"></div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeReceiptModal()">إغلاق</button>
+      <button class="btn btn-primary" onclick="exportReceiptPDFFromModal()">تصدير PDF</button>
+    </div>
+  </div>
+</div>
 <div id="print-area" style="position:absolute;left:-9999px;top:0;width:794px;background:#fff;padding:24px;font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;"></div>
 
 <script>
