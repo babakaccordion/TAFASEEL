@@ -524,7 +524,7 @@ async function htmlToPDF(html, filename) {
   container.innerHTML = '';
 }
 
-function watermarkImg() { return '<img src="watermark.png" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;opacity:0.08;pointer-events:none;" onerror="this.style.display=\'none\'" alt="">'; }
+function watermarkImg() { return '<img src="watermark.png" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0.10;pointer-events:none;" onerror="this.style.display=\'none\'" alt="">'; }
 
 function exportGigReport(id) {
   const g = state.gigs.find(x=>x.id===id);
@@ -533,8 +533,8 @@ function exportGigReport(id) {
     <div style="position:relative;min-height:1000px;">
       ${watermarkImg()}
       <div style="text-align:center;margin-bottom:12px;">
-        <h1 style="color:#5A1428;margin:0;">تفاصيل</h1>
-        <p style="color:#7A5A62;margin:4px 0 0;">تقرير الحفلة</p>
+        <h1 style="color:#5A1428;margin:0;font-size:30px;font-family:'Diwan',serif;font-weight:700;">تفاصيل</h1>
+        <p style="color:#7A5A62;margin:4px 0 0;font-family:'Naskh',serif;font-weight:700;">تقرير الحفلة</p>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead><tr><th style="background:#F3E6EC;color:#5A1428;padding:8px;border:1px solid #E8D4DC;text-align:right;">الحقل</th><th style="background:#F3E6EC;color:#5A1428;padding:8px;border:1px solid #E8D4DC;text-align:right;">القيمة</th></tr></thead>
@@ -557,7 +557,7 @@ function exportGigReport(id) {
         <tbody>${(g.musicians||[]).map(gm=>`<tr><td style="padding:8px;border:1px solid #E8D4DC;">${musicianName(gm.musicianId)}</td><td style="padding:8px;border:1px solid #E8D4DC;">${instrName(state.musicians.find(m=>m.id===gm.musicianId)?.instrumentId)}</td><td style="padding:8px;border:1px solid #E8D4DC;">${fmtMoney(gm.fee)}</td></tr>`).join('')||'<tr><td colspan="3" style="padding:8px;border:1px solid #E8D4DC;text-align:center;">لا يوجد عازفون</td></tr>'}</tbody>
       </table>
       <div style="margin-top:24px;text-align:center;border-top:1px solid #E8D4DC;padding-top:12px;">
-        <p style="font-weight:700;color:#5A1428;margin:0;">فرقة تفاصيل</p>
+        <p style="font-weight:700;color:#5A1428;margin:0;font-family:'Diwan',serif;font-size:20px;">فرقة تفاصيل</p>
         <p style="color:#7A5A62;margin:4px 0 0;font-size:13px;">نشكركم لأختيارنا ولتعاملكم معنا</p>
       </div>
     </div>
@@ -571,8 +571,8 @@ function exportGigInvoice(id) {
     <div style="position:relative;min-height:1000px;">
       ${watermarkImg()}
       <div style="text-align:center;margin-bottom:16px;">
-        <h1 style="color:#5A1428;margin:0;font-size:26px;">تفاصيل</h1>
-        <p style="color:#7A5A62;margin:4px 0 0;font-size:15px;font-weight:600;">نحن فرقة تفاصيل نشكركم لأختيارنا ولتعاملكم معنا</p>
+        <h1 style="color:#5A1428;margin:0;font-size:30px;font-family:'Diwan',serif;font-weight:700;">تفاصيل</h1>
+        <p style="color:#7A5A62;margin:4px 0 0;font-size:15px;font-weight:700;font-family:'DimaShekari',serif;">نحن فرقة تفاصيل نشكركم لأختيارنا ولتعاملكم معنا</p>
       </div>
       <h2 style="color:#5A1428;text-align:center;margin:8px 0;">فاتورة حفلة</h2>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -586,11 +586,11 @@ function exportGigInvoice(id) {
           ${g.notes?`<tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">ملاحظات</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.notes}</td></tr>`:''}
         </tbody>
       </table>
-      <div style="margin-top:60px;display:flex;justify-content:flex-start;">
+      <div style="margin-top:60px;display:flex;justify-content:flex-end;">
         <div style="border-top:1px solid #000;padding-top:6px;min-width:180px;text-align:center;">التوقيع</div>
       </div>
       <div style="margin-top:24px;text-align:center;border-top:1px solid #E8D4DC;padding-top:12px;">
-        <p style="font-weight:700;color:#5A1428;margin:0;">فرقة تفاصيل</p>
+        <p style="font-weight:700;color:#5A1428;margin:0;font-family:'Diwan',serif;font-size:20px;">فرقة تفاصيل</p>
       </div>
     </div>
   `;
@@ -621,8 +621,8 @@ function buildReceiptHTML(g) {
     <div style="position:relative;min-height:900px;padding:20px;">
       <img src="watermark.png" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:55%;opacity:0.12;pointer-events:none;" onerror="this.style.display='none'" alt="">
       <div style="text-align:center;margin-bottom:14px;">
-        <h1 style="color:#5A1428;margin:0;font-size:26px;">فرقة تفاصيل</h1>
-        <p style="color:#7A5A62;margin:6px 0 0;font-size:14px;font-weight:600;">لأننا نهتم في كل التفاصيل امتناننا لثقتكم بفرقة تفاصيل الموسيقية… معكم نُبدع</p>
+        <h1 style="color:#5A1428;margin:0;font-size:30px;font-family:'Diwan',serif;font-weight:700;">فرقة تفاصيل</h1>
+        <p style="color:#7A5A62;margin:6px 0 0;font-size:16px;font-weight:700;font-family:'DimaShekari',serif;">لأننا نهتم في كل التفاصيل امتناننا لثقتكم بفرقة تفاصيل الموسيقية… معكم نُبدع</p>
       </div>
       <h2 style="color:#5A1428;text-align:center;margin:8px 0 12px;">إيصال</h2>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -636,11 +636,11 @@ function buildReceiptHTML(g) {
           ${g.notes?`<tr><td style="padding:8px;border:1px solid #E8D4DC;font-weight:700;background:#F3E6EC;">ملاحظات</td><td style="padding:8px;border:1px solid #E8D4DC;">${g.notes}</td></tr>`:''}
         </tbody>
       </table>
-      <div style="margin-top:60px;display:flex;justify-content:flex-start;">
+      <div style="margin-top:60px;display:flex;justify-content:flex-end;">
         <div style="border-top:1px solid #000;padding-top:6px;min-width:200px;text-align:center;">التوقيع</div>
       </div>
       <div style="margin-top:24px;text-align:center;border-top:1px solid #E8D4DC;padding-top:12px;">
-        <p style="font-weight:700;color:#5A1428;margin:0;">فرقة تفاصيل</p>
+        <p style="font-weight:700;color:#5A1428;margin:0;font-family:'Diwan',serif;font-size:20px;">فرقة تفاصيل</p>
       </div>
     </div>
   `;
