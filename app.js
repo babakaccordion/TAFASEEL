@@ -1,6 +1,6 @@
 // Tafaseel Web (PWA) - Arabic RTL
 const STORAGE_KEY = 'tafaseel_state_v1';
-let state = { instruments: [], dressTypes: [], musicians: [], gigs: [], notes: [], counters: { inst:0, dress:0, mus:0, gig:0, note:0 } };
+let state = { instruments: [], dressTypes: [], musicians: [], gigs: [], notes: [], expenses: [], counters: { inst:0, dress:0, mus:0, gig:0, note:0, exp:0 } };
 
 const defaultInstruments = ["قربة","ترمبيت","طبل","ترمبون","كلارنيت","ساكسفون","كورنيت","طبلة","عصا","مزهر","يرغول","مطرب","رديد"];
 const defaultDress = ["مراسم","أردني","فلسطيني","سوري","كاجوال","بدلات رسمي"];
@@ -11,14 +11,16 @@ function loadState() {
     if (raw) { state = JSON.parse(raw); }
     else { seed(); }
   } catch (e) { seed(); }
-  if (!state.counters) state.counters = { inst:0, dress:0, mus:0, gig:0, note:0 };
+  if (!state.counters) state.counters = { inst:0, dress:0, mus:0, gig:0, note:0, exp:0 };
+  if (state.counters.exp === undefined) state.counters.exp = 0;
+  if (!state.expenses) state.expenses = [];
   if (!state.instruments || !state.instruments.length) seedInst();
   if (!state.dressTypes || !state.dressTypes.length) seedDress();
 }
 function seedInst() { defaultInstruments.forEach(n => addInstrument(n, true)); }
 function seedDress() { defaultDress.forEach(n => addDressType(n, true)); }
 function seed() {
-  state = { instruments: [], dressTypes: [], musicians: [], gigs: [], notes: [], counters: { inst:0, dress:0, mus:0, gig:0, note:0 } };
+  state = { instruments: [], dressTypes: [], musicians: [], gigs: [], notes: [], expenses: [], counters: { inst:0, dress:0, mus:0, gig:0, note:0, exp:0 } };
   seedInst(); seedDress();
 }
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -75,6 +77,14 @@ function deleteGig(id) {
   saveState(); toast('تم الحذف');
 }
 
+function addExpense(data) {
+  state.expenses.push({ id: nextId('exp'), title: data.title, amount: Number(data.amount)||0, date: data.date, note: data.note });
+  saveState(); toast('تمت إضافة المصرف');
+}
+function deleteExpense(id) {
+  state.expenses = state.expenses.filter(e=>e.id!==id); saveState(); toast('تم الحذف');
+}
+
 function addNote(data) {
   state.notes.push({ id: nextId('note'), scope: data.scope, refId: data.refId, title: data.title, content: data.content, createdAt: new Date().toLocaleString('ar') });
   saveState(); toast('تمت إضافة الملاحظة');
@@ -88,7 +98,7 @@ function today() { return new Date().toISOString().slice(0,10); }
 
 // Navigation
 let currentScreen = 'dashboard';
-const screens = ['dashboard','gigs','musicians','settings','notes','invoices','gigDetail'];
+const screens = ['dashboard','gigs','musicians','settings','notes','invoices','achievements','gigDetail'];
 function navigate(name) {
   currentScreen = name;
   document.querySelectorAll('section[id^="screen-"]').forEach(s => { s.style.display = 'none'; });
@@ -106,6 +116,7 @@ function renderCurrent() {
   else if (currentScreen==='settings') renderSettings();
   else if (currentScreen==='notes') renderNotes();
   else if (currentScreen==='invoices') renderInvoices();
+  else if (currentScreen==='achievements') renderAchievements();
 }
 
 // Dashboard
@@ -172,7 +183,7 @@ function renderGigs() {
   tbody.innerHTML = gigs.map(g=>{
     const fees = (g.musicians||[]).reduce((a,x)=>a+(Number(x.fee)||0),0);
     return `<tr>
-      <td>${g.name}</td><td>${g.date}</td><td>${g.start||''} - ${g.end||''}</td><td>${g.location||''}</td><td>${dressName(g.dressTypeId)}</td><td>${fmtMoney(g.price)}</td><td>${fmtMoney(fees)}</td>
+      <td style="color:var(--burgundy);font-weight:700;cursor:pointer;text-decoration:underline;" onclick="openGigDetail(${g.id})">${g.name}</td><td>${g.date}</td><td>${g.start||''} - ${g.end||''}</td><td>${g.location||''}</td><td>${dressName(g.dressTypeId)}</td><td>${fmtMoney(g.price)}</td><td>${fmtMoney(fees)}</td>
       <td>
         <button class="btn btn-secondary" style="padding:6px 10px;font-size:13px" onclick="openGigDetail(${g.id})">عرض</button>
         <button class="btn btn-secondary" style="padding:6px 10px;font-size:13px" onclick="editGig(${g.id})">تعديل</button>
@@ -183,6 +194,9 @@ function renderGigs() {
 }
 function confirmDeleteGig(id) {
   if (confirm('هل تريد حذف هذه الحفلة؟')) { deleteGig(id); renderGigs(); renderDashboard(); }
+}
+function confirmDeleteGigFromDetail(id) {
+  if (confirm('هل تريد حذف هذه الحفلة؟')) { deleteGig(id); navigate('gigs'); renderGigs(); renderDashboard(); }
 }
 function openGigModal(gig=null) {
   const modal = document.getElementById('gig-modal');
@@ -488,6 +502,10 @@ function openGigDetail(id) {
       <button class="btn btn-ghost" onclick="exportGigXLSX(${g.id})">تصدير Excel</button>
       <button class="btn btn-primary" onclick="openReceiptPreview(${g.id})">إيصال (معاينة/طباعة)</button>
     </div>
+    <div class="row" style="margin-top:8px;">
+      <button class="btn btn-secondary" onclick="editGig(${g.id})">تعديل</button>
+      <button class="btn btn-danger" onclick="confirmDeleteGigFromDetail(${g.id})">حذف</button>
+    </div>
   `;
 }
 
@@ -695,6 +713,196 @@ function exportReceiptPDFFromModal() {
         heightLeft -= pageHeight;
       }
       pdf.save(`receipt_${currentReceiptGigId}.pdf`);
+    } catch (e) {
+      alert('خطأ في التصدير: ' + e.message);
+    }
+    container.style.display = 'none';
+    container.innerHTML = '';
+  }, 400);
+}
+
+// Achievements
+function renderAchievements() {
+  const totalGigs = state.gigs.length;
+  const totalIncome = state.gigs.reduce((a,g)=>a+(Number(g.price)||0),0);
+  const totalFees = state.gigs.reduce((a,g)=>a+(g.musicians||[]).reduce((b,x)=>b+(Number(x.fee)||0),0),0);
+  const totalExpenses = (state.expenses||[]).reduce((a,e)=>a+(Number(e.amount)||0),0);
+  const netProfit = totalIncome - totalFees - totalExpenses;
+
+  // monthly
+  const months = {};
+  state.gigs.forEach(g=>{
+    const m = g.date.slice(0,7);
+    if (!months[m]) months[m] = {gigs:0, income:0, fees:0, expenses:0};
+    months[m].gigs++;
+    months[m].income += Number(g.price)||0;
+    months[m].fees += (g.musicians||[]).reduce((b,x)=>b+(Number(x.fee)||0),0);
+  });
+  (state.expenses||[]).forEach(e=>{
+    const m = (e.date||'').slice(0,7);
+    if (!m) return;
+    if (!months[m]) months[m] = {gigs:0, income:0, fees:0, expenses:0};
+    months[m].expenses += Number(e.amount)||0;
+  });
+  const monthKeys = Object.keys(months).sort();
+  // yearly
+  const years = {};
+  monthKeys.forEach(m=>{
+    const y = m.slice(0,4);
+    if (!years[y]) years[y] = {gigs:0, income:0, fees:0, expenses:0};
+    years[y].gigs += months[m].gigs;
+    years[y].income += months[m].income;
+    years[y].fees += months[m].fees;
+    years[y].expenses += months[m].expenses;
+  });
+  const yearKeys = Object.keys(years).sort();
+
+  const container = document.getElementById('achievements-content');
+  if (!container) return;
+  container.innerHTML = `
+    <div class="stat-grid">
+      <div class="stat"><div class="label">عدد الحفلات</div><div class="value">${totalGigs}</div></div>
+      <div class="stat"><div class="label">إجمالي الدخل</div><div class="value">${fmtMoney(totalIncome)}</div></div>
+      <div class="stat"><div class="label">أجور العازفين</div><div class="value">${fmtMoney(totalFees)}</div></div>
+      <div class="stat"><div class="label">المصاريف</div><div class="value">${fmtMoney(totalExpenses)}</div></div>
+    </div>
+    <div class="stat" style="margin-top:10px;"><div class="label">صافي الربح</div><div class="value">${fmtMoney(netProfit)}</div></div>
+
+    <div class="section-title">تقرير شهري</div>
+    <div class="card" style="padding:0;overflow:auto;">
+      <table><thead><tr><th>الشهر</th><th>حفلات</th><th>دخل</th><th>أجور عازفين</th><th>مصاريف</th><th>صافي</th></tr></thead>
+      <tbody>${monthKeys.map(m=>`<tr><td>${m}</td><td>${months[m].gigs}</td><td>${fmtMoney(months[m].income)}</td><td>${fmtMoney(months[m].fees)}</td><td>${fmtMoney(months[m].expenses)}</td><td>${fmtMoney(months[m].income-months[m].fees-months[m].expenses)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">لا توجد بيانات</td></tr>'}</tbody></table>
+    </div>
+
+    <div class="section-title">تقرير سنوي</div>
+    <div class="card" style="padding:0;overflow:auto;">
+      <table><thead><tr><th>السنة</th><th>حفلات</th><th>دخل</th><th>أجور عازفين</th><th>مصاريف</th><th>صافي</th></tr></thead>
+      <tbody>${yearKeys.map(y=>`<tr><td>${y}</td><td>${years[y].gigs}</td><td>${fmtMoney(years[y].income)}</td><td>${fmtMoney(years[y].fees)}</td><td>${fmtMoney(years[y].expenses)}</td><td>${fmtMoney(years[y].income-years[y].fees-years[y].expenses)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">لا توجد بيانات</td></tr>'}</tbody></table>
+    </div>
+
+    <div class="row" style="margin-top:8px;">
+      <button class="btn btn-primary" onclick="exportAchievementsPDF('monthly')">تصدير تقرير شهري (PDF)</button>
+      <button class="btn btn-secondary" onclick="exportAchievementsPDF('yearly')">تصدير تقرير سنوي (PDF)</button>
+    </div>
+
+    <div class="section-title" style="margin-top:16px;">المصاريف</div>
+    <button class="btn btn-secondary btn-block" onclick="addExpensePrompt()" style="margin-bottom:8px;">+ إضافة مصرف</button>
+    <div id="expenses-list"></div>
+  `;
+  // expenses list
+  const el = document.getElementById('expenses-list');
+  if (el) el.innerHTML = (state.expenses||[]).map(e=>`
+    <div class="list-item">
+      <div>
+        <div class="title">${e.title}</div>
+        <div class="sub">${e.date} · ${fmtMoney(e.amount)} ${e.note?'· '+e.note:''}</div>
+      </div>
+      <button class="btn btn-danger" style="padding:6px 10px;font-size:13px;" onclick="confirmDeleteExpense(${e.id})">حذف</button>
+    </div>`).join('') || '<div class="empty">لا توجد مصاريف</div>';
+}
+
+function confirmDeleteExpense(id){ if(confirm('هل تريد الحذف؟')){ deleteExpense(id); renderAchievements(); } }
+function addExpensePrompt() {
+  const title = prompt('عنوان المصرف:');
+  if (!title || !title.trim()) return;
+  const amount = prompt('المبلغ (د.أ):');
+  if (amount === null) return;
+  const date = prompt('التاريخ (YYYY-MM-DD):', new Date().toISOString().slice(0,10));
+  if (date === null) return;
+  const note = prompt('ملاحظة (اختياري):') || '';
+  addExpense({ title: title.trim(), amount: Number(amount)||0, date: date.trim(), note: note.trim() });
+  renderAchievements();
+}
+
+function exportAchievementsPDF(type) {
+  // build monthly or yearly table HTML
+  const months = {};
+  state.gigs.forEach(g=>{
+    const m = g.date.slice(0,7);
+    if (!months[m]) months[m] = {gigs:0, income:0, fees:0, expenses:0};
+    months[m].gigs++; months[m].income += Number(g.price)||0;
+    months[m].fees += (g.musicians||[]).reduce((b,x)=>b+(Number(x.fee)||0),0);
+  });
+  (state.expenses||[]).forEach(e=>{
+    const m=(e.date||'').slice(0,7); if(!m) return;
+    if(!months[m]) months[m]={gigs:0,income:0,fees:0,expenses:0};
+    months[m].expenses += Number(e.amount)||0;
+  });
+  const monthKeys = Object.keys(months).sort();
+  const years = {};
+  monthKeys.forEach(m=>{
+    const y=m.slice(0,4);
+    if(!years[y]) years[y]={gigs:0,income:0,fees:0,expenses:0};
+    years[y].gigs+=months[m].gigs; years[y].income+=months[m].income; years[y].fees+=months[m].fees; years[y].expenses+=months[m].expenses;
+  });
+  const yearKeys = Object.keys(years).sort();
+
+  let rows = '';
+  let title = '';
+  if (type==='monthly') {
+    title = 'تقرير شهري';
+    rows = monthKeys.map(m=>`<tr><td style="padding:6px;border:1px solid #E8D4DC;">${m}</td><td style="padding:6px;border:1px solid #E8D4DC;">${months[m].gigs}</td><td style="padding:6px;border:1px solid #E8D4DC;">${fmtMoney(months[m].income)}</td><td style="padding:6px;border:1px solid #E8D4DC;">${fmtMoney(months[m].fees)}</td><td style="padding:6px;border:1px solid #E8D4DC;">${fmtMoney(months[m].expenses)}</td><td style="padding:6px;border:1px solid #E8D4DC;">${fmtMoney(months[m].income-months[m].fees-months[m].expenses)}</td></tr>`).join('');
+  } else {
+    title = 'تقرير سنوي';
+    rows = yearKeys.map(y=>`<tr><td style="padding:6px;border:1px solid #E8D4DC;">${y}</td><td style="padding:6px;border:1px solid #E8D4DC;">${years[y].gigs}</td><td style="padding:6px;border:1px solid #E8D4DC;">${fmtMoney(years[y].income)}</td><td style="padding:6px;border:1px solid #E8D4DC;">${fmtMoney(years[y].fees)}</td><td style="padding:6px;border:1px solid #E8D4DC;">${fmtMoney(years[y].expenses)}</td><td style="padding:6px;border:1px solid #E8D4DC;">${fmtMoney(years[y].income-years[y].fees-years[y].expenses)}</td></tr>`).join('');
+  }
+  const totalIncome = state.gigs.reduce((a,g)=>a+(Number(g.price)||0),0);
+  const totalFees = state.gigs.reduce((a,g)=>a+(g.musicians||[]).reduce((b,x)=>b+(Number(x.fee)||0),0),0);
+  const totalExp = (state.expenses||[]).reduce((a,e)=>a+(Number(e.amount)||0),0);
+  const html = `
+    <div style="position:relative;min-height:1000px;">
+      <img src="watermark.png" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0.10;pointer-events:none;" onerror="this.style.display='none'" alt="">
+      <div style="text-align:center;margin-bottom:12px;">
+        <h1 style="color:#5A1428;margin:0;font-size:30px;font-family:'DecotypeThuluthIII',serif;font-weight:700;">فرقة تفاصيل</h1>
+        <p style="color:#7A5A62;margin:4px 0 0;font-family:'Arial',sans-serif;font-weight:700;">${title}</p>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr>
+          <th style="background:#F3E6EC;color:#5A1428;padding:6px;border:1px solid #E8D4DC;">${type==='monthly'?'الشهر':'السنة'}</th>
+          <th style="background:#F3E6EC;color:#5A1428;padding:6px;border:1px solid #E8D4DC;">حفلات</th>
+          <th style="background:#F3E6EC;color:#5A1428;padding:6px;border:1px solid #E8D4DC;">دخل</th>
+          <th style="background:#F3E6EC;color:#5A1428;padding:6px;border:1px solid #E8D4DC;">أجور عازفين</th>
+          <th style="background:#F3E6EC;color:#5A1428;padding:6px;border:1px solid #E8D4DC;">مصاريف</th>
+          <th style="background:#F3E6EC;color:#5A1428;padding:6px;border:1px solid #E8D4DC;">صافي</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="margin-top:14px;">
+        <p style="font-weight:700;color:#5A1428;margin:2px 0;">إجمالي الدخل: ${fmtMoney(totalIncome)}</p>
+        <p style="font-weight:700;color:#5A1428;margin:2px 0;">أجور العازفين: ${fmtMoney(totalFees)}</p>
+        <p style="font-weight:700;color:#5A1428;margin:2px 0;">المصاريف: ${fmtMoney(totalExp)}</p>
+        <p style="font-weight:700;color:#5A1428;margin:2px 0;">صافي الربح: ${fmtMoney(totalIncome-totalFees-totalExp)}</p>
+      </div>
+      <div style="margin-top:24px;text-align:center;border-top:1px solid #E8D4DC;padding-top:12px;">
+        <p style="font-weight:700;color:#5A1428;margin:0;font-family:'DecotypeThuluthIII',serif;font-size:20px;">فرقة تفاصيل</p>
+        <p style="color:#7A5A62;margin:4px 0 0;font-size:13px;">نشكركم لأختيارنا ولتعاملكم معنا</p>
+      </div>
+    </div>
+  `;
+  const container = document.getElementById('print-area');
+  container.innerHTML = html;
+  container.style.display = 'block';
+  setTimeout(async () => {
+    try {
+      const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p','mm','a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = canvas.height * imgWidth / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      pdf.save(`achievements_${type}.pdf`);
     } catch (e) {
       alert('خطأ في التصدير: ' + e.message);
     }
