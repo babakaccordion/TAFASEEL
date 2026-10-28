@@ -1,6 +1,5 @@
-@font-face { font-family: 'DimaShekari'; src: url('fonts/DimaShekari.ttf') format('truetype'); font-weight: normal; font-style: normal; }
-@font-face { font-family: 'Diwan'; src: url('fonts/Diwan.ttf') format('truetype'); font-weight: normal; font-style: normal; }
-@font-face { font-family: 'Naskh'; src: url('fonts/Naskh.ttf') format('truetype'); font-weight: normal; font-style: normal; }
+@font-face { font-family: 'BESMELLAH2'; src: url('fonts/BESMELLAH2.ttf') format('truetype'); font-weight: normal; font-style: normal; }
+@font-face { font-family: 'SfSultanBlack'; src: url('fonts/SfSultanBlack.ttf') format('truetype'); font-weight: normal; font-style: normal; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -16,7 +15,7 @@
 }
 html, body { height: 100%; }
 body {
-  font-family: 'Naskh', 'Segoe UI', Tahoma, Arial, sans-serif;
+  font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
   font-weight: 700;
   background: var(--bg);
   color: var(--text);
