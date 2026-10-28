@@ -193,32 +193,74 @@ function openGigModal(gig=null) {
   document.getElementById('gig-dress').innerHTML = '<option value="">— غير محدد —</option>' + state.dressTypes.map(d=>`<option value="${d.id}" ${gig&&gig.dressTypeId===d.id?'selected':''}>${d.name}</option>`).join('');
   document.getElementById('gig-price').value = gig?gig.price:0;
   document.getElementById('gig-notes').value = gig?gig.notes:'';
+  // unified fee
+  const unifiedWrap = document.getElementById('gig-unified-wrap');
+  if (unifiedWrap) unifiedWrap.style.display = state.musicians.length?'block':'none';
+  document.getElementById('gig-unified-check').checked = false;
+  document.getElementById('gig-unified-fee').value = 0;
+  document.getElementById('gig-unified-fee').disabled = true;
   // musicians
   const list = document.getElementById('gig-musicians-list');
   const assigned = gig?gig.musicians:[];
   list.innerHTML = state.musicians.map(m=>{
     const a = assigned.find(x=>x.musicianId===m.id);
-    return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0">
-      <input type="checkbox" data-mid="${m.id}" ${a?'checked':''} onchange="toggleGigMus(this)">
-      <span style="flex:1">${m.name} (${instrName(m.instrumentId)})</span>
-      <input type="number" data-fee="${m.id}" value="${a?a.fee:0}" step="0.01" style="width:100px" ${a?'':'disabled'}>
-    </label>`;
+    return `<div class="mus-row" data-mid="${m.id}" style="background:var(--burgundy-light);border-radius:10px;padding:10px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <input type="checkbox" data-mid="${m.id}" ${a?'checked':''} onchange="toggleGigMus(this)" style="width:20px;height:20px;">
+        <span style="flex:1;font-weight:700;color:var(--burgundy-dark)">${m.name}</span>
+        <span style="font-size:13px;color:var(--muted)">${instrName(m.instrumentId)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="margin:0;font-size:13px;flex:0 0 auto;">أجر العازف (د.أ)</label>
+        <input type="number" data-fee="${m.id}" value="${a?a.fee:0}" step="0.01" style="flex:1" ${a?'':'disabled'}>
+      </div>
+    </div>`;
   }).join('') || '<div class="empty">لا يوجد عازفون. أضف من شاشة العازفين.</div>';
   modal.classList.add('show');
 }
 function toggleGigMus(cb) {
   const fee = document.querySelector(`input[data-fee="${cb.dataset.mid}"]`);
-  if (fee) fee.disabled = !cb.checked;
+  if (fee) {
+    fee.disabled = !cb.checked;
+    if (cb.checked && document.getElementById('gig-unified-check').checked) {
+      fee.value = document.getElementById('gig-unified-fee').value;
+    }
+  }
+}
+function toggleUnified(cb) {
+  const feeInput = document.getElementById('gig-unified-fee');
+  feeInput.disabled = !cb.checked;
+  if (cb.checked) {
+    const val = feeInput.value;
+    document.querySelectorAll('#gig-musicians-list input[type="checkbox"]').forEach(c => {
+      if (c.checked) {
+        const f = document.querySelector(`input[data-fee="${c.dataset.mid}"]`);
+        if (f) f.value = val;
+      }
+    });
+  }
+}
+function applyUnifiedFee() {
+  if (!document.getElementById('gig-unified-check').checked) return;
+  const val = document.getElementById('gig-unified-fee').value;
+  document.querySelectorAll('#gig-musicians-list input[type="checkbox"]').forEach(c => {
+    if (c.checked) {
+      const f = document.querySelector(`input[data-fee="${c.dataset.mid}"]`);
+      if (f) f.value = val;
+    }
+  });
 }
 function closeGigModal() { document.getElementById('gig-modal').classList.remove('show'); }
 function saveGig() {
   const name = document.getElementById('gig-name').value.trim();
   if (!name) { toast('اسم الحفلة مطلوب'); return; }
+  if (document.getElementById('gig-unified-check').checked) applyUnifiedFee();
   const musicians = [];
   document.querySelectorAll('#gig-musicians-list input[type="checkbox"]').forEach(cb=>{
     if (cb.checked) {
       const mid = Number(cb.dataset.mid);
-      const fee = Number(document.querySelector(`input[data-fee="${mid}"]`).value)||0;
+      const feeInput = document.querySelector(`input[data-fee="${mid}"]`);
+      const fee = feeInput ? (Number(feeInput.value)||0) : 0;
       musicians.push({musicianId: mid, fee});
     }
   });
