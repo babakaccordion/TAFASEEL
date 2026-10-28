@@ -386,6 +386,36 @@ function openMusicianDetail(id) {
   `;
 }
 
+// Backup / Restore
+function backupData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'tafaseel_backup.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('تم تصدير النسخة الاحتياطية');
+}
+function restoreData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data || !data.counters) throw new Error('ملف غير صالح');
+      state = data;
+      saveState();
+      toast('تم استيراد النسخة الاحتياطية');
+      renderSettings(); renderDashboard();
+    } catch (err) {
+      toast('خطأ: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
 // Settings
 function renderSettings() {
   const instList = document.getElementById('inst-list');
